@@ -51,6 +51,7 @@ class Payment extends \Magento\Framework\Model\ResourceModel\Db\AbstractDb
      */
     public function getLinkedAdyenOrderPayments($paymentId, array $statuses = []): array
     {
+        $this->getConnection()->commit();
         $select = $this->getConnection()->select()
             ->from(['order_payment' => $this->getTable('adyen_order_payment')])
             ->where('order_payment.payment_id=?', $paymentId);
