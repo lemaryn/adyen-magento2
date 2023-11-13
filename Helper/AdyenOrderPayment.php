@@ -222,6 +222,14 @@ class AdyenOrderPayment extends AbstractHelper
             $adyenOrderPayment->setCreatedAt($date);
             $adyenOrderPayment->setUpdatedAt($date);
             $this->orderPaymentResourceModel->save($adyenOrderPayment);
+            $this->orderPaymentResourceModel->getConnection()->commit();
+            $this->adyenLogger->addAdyenNotification(
+                "Adyen order payment created",
+                [
+                    'order' => $order->getIncrementId(),
+                    'pspReferences' => $pspReference
+                ]
+            );
         } catch (\Exception $e) {
             $this->adyenLogger->error(sprintf(
                 'While processing a notification an exception occured. The payment has already been saved in the ' .
@@ -284,13 +292,25 @@ class AdyenOrderPayment extends AbstractHelper
     {
         $adyenOrderPaymentsTotal = 0;
         $orderAmountCurrency = $this->adyenChargedCurrencyHelper->getOrderAmountCurrency($order);
-
+        $pspReference = '';
         foreach ($adyenOrderPayments as $adyenOrderPayment) {
             $adyenOrderPaymentsTotal += $adyenOrderPayment[OrderPaymentInterface::AMOUNT];
+            $pspReference .= '(' . $adyenOrderPayment[OrderPaymentInterface::PSPREFRENCE] . ')';
         }
 
         $adyenOrderPaymentsTotalCents = $this->adyenDataHelper->formatAmount($adyenOrderPaymentsTotal, $orderAmountCurrency->getCurrencyCode());
         $orderAmountCents = $this->adyenDataHelper->formatAmount($orderAmountCurrency->getAmount(), $orderAmountCurrency->getCurrencyCode());
+
+        $this->adyenLogger->addAdyenNotification(
+            "Check if full amount authorized compareAdyenOrderPaymentsAmount",
+            [
+                'adyenOrderPaymentsTotalCents' => $adyenOrderPaymentsTotalCents,
+                'orderAmountCents' => $orderAmountCents,
+                'order' => $order->getIncrementId(),
+                'pspReferences' => $pspReference,
+                'result' => $adyenOrderPaymentsTotalCents === $orderAmountCents
+            ]
+        );
 
         return $adyenOrderPaymentsTotalCents === $orderAmountCents;
     }
